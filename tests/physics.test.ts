@@ -4,12 +4,13 @@ import { airportTerrain, getAirport } from "../src/airports";
 import {
   createFlightState,
   defaultFlightConfig,
+  flightCeiling,
   stepFlight,
 } from "../src/physics";
 
 import { cessnaScale, cessnaGroundClearance } from "../src/aircraft-config";
 
-const flat = () => -100;
+const flat = () => 0;
 const close = (actual: number, expected: number, tolerance = 1e-8) =>
   assert.ok(
     Math.abs(actual - expected) <= tolerance,
@@ -27,14 +28,16 @@ test("start height clears terrain and forward speed is constant", () => {
 test("descent accelerates faster and has a higher speed limit than climbing", () => {
   const climb = createFlightState(0);
   const descent = createFlightState(0);
+  descent.altitude = 30;
   stepFlight(climb, 1, 0.2, flat);
   stepFlight(descent, -1, 0.2, flat);
-  close(climb.velocity, 1);
-  close(descent.velocity, -1.4);
-  stepFlight(climb, 1, 1, flat);
-  stepFlight(descent, -1, 1, flat);
-  close(climb.velocity, 3);
-  close(descent.velocity, -5.4);
+  close(climb.velocity, 2);
+  close(descent.velocity, -2.8);
+  close(Math.abs(descent.velocity / climb.velocity), 1.4);
+  stepFlight(climb, 1, 1.2, flat);
+  stepFlight(descent, -1, 1.2, flat);
+  close(climb.velocity, 10);
+  close(descent.velocity, -18);
   close(Math.abs(descent.velocity / climb.velocity), 1.8);
 });
 
@@ -44,7 +47,7 @@ test("neutral input preserves inertia while drag smoothly reduces speed", () => 
   const initialAltitude = state.altitude;
   stepFlight(state, 0, 0.5, flat);
   assert.ok(state.altitude > initialAltitude);
-  close(state.velocity, 2 * Math.exp(-defaultFlightConfig.neutralDrag * 0.5));
+  close(state.velocity, 4 * Math.exp(-defaultFlightConfig.neutralDrag * 0.5));
   assert.ok(state.pitch > 0);
 });
 
@@ -53,7 +56,7 @@ test("reversing controls brakes existing motion before descending", () => {
   stepFlight(state, 1, 0.4, flat);
   const altitude = state.altitude;
   stepFlight(state, -1, 0.1, flat);
-  assert.ok(state.velocity > 0 && state.velocity < 2);
+  assert.ok(state.velocity > 0 && state.velocity < 4);
   assert.ok(state.altitude > altitude);
   stepFlight(state, -1, 0.3, flat);
   assert.ok(state.velocity < 0);
@@ -77,24 +80,116 @@ test("different caller frame rates produce the same trajectory", () => {
 
 test("ceiling stops upward velocity and permits immediate descent", () => {
   const state = createFlightState(0);
-  stepFlight(state, 1, 4, flat);
-  assert.equal(state.altitude, 15);
+  stepFlight(state, 1, 6, flat);
+  assert.equal(state.altitude, 40);
   assert.equal(state.velocity, 0);
   stepFlight(state, -1, 0.1, flat);
-  assert.ok(state.altitude < 15);
+  assert.ok(state.altitude < 40);
   assert.ok(state.velocity < 0);
 });
 
-test("ceiling gently slows climb through the final unit of altitude", () => {
+test("ceiling gently slows climb through the final four units of altitude", () => {
   const state = createFlightState(0);
-  state.altitude = 14.5;
-  state.velocity = 3;
+  state.altitude = 38;
+  state.velocity = 10;
   stepFlight(state, 1, 1 / 120, flat);
-  assert.ok(state.velocity > 0 && state.velocity < 3);
-  assert.ok(state.altitude > 14.5 && state.altitude < 15);
+  assert.ok(state.velocity > 0 && state.velocity < 10);
+  assert.ok(state.altitude > 38 && state.altitude < 40);
   const firstSpeed = state.velocity;
   stepFlight(state, 1, 0.1, flat);
   assert.ok(state.velocity > 0 && state.velocity < firstSpeed);
+});
+
+test("cruise maneuvers reach approximately 55 degrees up and 69 degrees down", () => {
+  const climb = createFlightState(0);
+  climb.velocity = defaultFlightConfig.maxClimbSpeed;
+  stepFlight(climb, 1, 1.2, flat);
+  close((climb.pitch * 180) / Math.PI, 55, 0.3);
+  const descent = createFlightState(0);
+  descent.altitude = 35;
+  descent.velocity = -defaultFlightConfig.maxDescentSpeed;
+  stepFlight(descent, -1, 1.2, flat);
+  close((descent.pitch * 180) / Math.PI, -69, 0.5);
+  assert.equal(descent.phase, "flying");
+});
+
+test("opposite input also brakes downward inertia before reversing it", () => {
+  const state = createFlightState(0);
+  stepFlight(state, -1, 0.4, flat);
+  const altitude = state.altitude;
+  stepFlight(state, 1, 0.1, flat);
+  close(state.velocity, -4.6);
+  assert.ok(state.altitude < altitude);
+  stepFlight(state, 1, 0.5, flat);
+  assert.ok(state.velocity > 0);
+  assert.equal(state.phase, "flying");
+});
+
+test("ceiling is two viewport heights above the terrain under the aircraft", () => {
+  for (const height of [-100, 0, 12]) {
+    const terrain = () => height;
+    const state = createFlightState(height);
+    state.altitude = height + 9;
+    stepFlight(state, 1, 6, terrain);
+    close(state.altitude, height + 40);
+    close(state.velocity, 0);
+    assert.equal(state.phase, "flying");
+  }
+  const terrain = (x: number, z = 0) => 3 + x * 0.1 + z * 100;
+  close(flightCeiling(10, terrain), 44);
+  close(
+    flightCeiling(10, terrain, { ...defaultFlightConfig, viewportHeight: 24 }),
+    52,
+  );
+});
+
+test("portrait ceiling permits eight more units of climb", () => {
+  const config = { ...defaultFlightConfig, viewportHeight: 24 };
+  const state = createFlightState(0, config);
+  stepFlight(state, 1, 7, flat, config);
+  close(state.altitude, 48);
+  close(state.velocity, 0);
+});
+
+test("lowering the viewport ceiling stops rise without teleporting and allows descent", () => {
+  const portrait = { ...defaultFlightConfig, viewportHeight: 24 };
+  const state = createFlightState(0, portrait);
+  state.altitude = 46;
+  state.velocity = 5;
+  stepFlight(state, 1, 0.5, flat);
+  close(state.altitude, 46);
+  close(state.velocity, 0);
+  stepFlight(state, -1, 1, flat);
+  close(state.altitude, 39);
+  assert.ok(state.velocity < 0);
+  stepFlight(state, 1, 4, flat);
+  close(state.altitude, 40);
+  close(state.velocity, 0);
+});
+
+test("descending terrain lowers the ceiling without moving an aircraft downward", () => {
+  const terrain = (x: number) => (x < 1 ? 10 : 0);
+  const state = createFlightState(10);
+  state.altitude = 45;
+  state.velocity = 0;
+  stepFlight(state, 1, 0.5, terrain);
+  assert.ok(state.altitude >= 45 && state.altitude < 46);
+  close(state.velocity, 0);
+  const altitude = state.altitude;
+  stepFlight(state, 1, 0.5, terrain);
+  close(state.altitude, altitude);
+  stepFlight(state, -1, 0.5, terrain);
+  assert.ok(state.altitude < altitude);
+});
+
+test("ceiling approach agrees at 30 and 120 frames per second", () => {
+  const simulate = (fps: number) => {
+    const state = createFlightState(0);
+    for (let i = 0; i < fps * 6; i++) stepFlight(state, 1, 1 / fps, flat);
+    for (let i = 0; i < fps; i++) stepFlight(state, -1, 1 / fps, flat);
+    return state;
+  };
+  assert.deepEqual(simulate(30), simulate(120));
 });
 
 test("nose terrain collision retains motion, ignores controls and restarts after settling", () => {
@@ -186,7 +281,7 @@ test("invalid delta is ignored and oversized input is clamped", () => {
   stepFlight(state, 1, -1, flat);
   assert.deepEqual(state, unchanged);
   stepFlight(state, 100, 0.2, flat);
-  close(state.velocity, 1);
+  close(state.velocity, 2);
 });
 
 const airport = getAirport(0);
@@ -214,6 +309,29 @@ test("gentle wheel touchdown aligns the aircraft and brakes to a parked stop", (
   const parked = { ...state };
   stepFlight(state, -1, 2, runwayTerrain);
   assert.deepEqual(state, parked);
+});
+
+test("released controls gently flare just above the runway for a slightly steeper approach", () => {
+  const state = approach();
+  state.altitude =
+    airport.elevation + defaultFlightConfig.groundClearance + 0.65;
+  state.velocity = -2;
+  state.pitch = -0.28;
+  stepFlight(state, 0, 0.8, runwayTerrain);
+  assert.equal(state.phase, "rolling");
+  assert.equal(state.pitch, 0);
+});
+
+test("landing assist does not override deliberate input or soften a fast dive", () => {
+  const intentional = approach();
+  intentional.altitude += 0.65;
+  intentional.pitch = -0.15;
+  stepFlight(intentional, -0.5, 1 / 120, runwayTerrain);
+  assert.ok(intentional.pitch < -0.15);
+  const hard = approach();
+  hard.velocity = -4;
+  stepFlight(hard, 0, 0.025, runwayTerrain);
+  assert.equal(hard.phase, "crashed");
 });
 
 test("hard, pitched, body-first and off-runway impacts crash", () => {

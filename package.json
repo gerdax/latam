@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
+    "build:pages": "tsc --noEmit && vite build --base=/latam-play/",
+    "deploy:pages": "node scripts/deploy-pages.mjs",
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {

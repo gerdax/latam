@@ -3,6 +3,8 @@ import { createCessna } from "./aircraft";
 import { Landscape, scenery } from "./terrain";
 import { AirportsView } from "./airports-view";
 import { CrashSmoke } from "./smoke";
+import { AltitudeCamera, viewportWorldHeight } from "./camera-follow";
+import { CloudField } from "./clouds";
 
 export class GameScene {
   readonly renderer: T.WebGLRenderer;
@@ -14,8 +16,12 @@ export class GameScene {
   readonly smoke = new CrashSmoke();
   private readonly smokeSource = new T.Vector3();
   private elapsed = 0;
-  private clouds: { group: T.Group; x: number; z: number; speed: number }[] =
-    [];
+  readonly clouds = new CloudField();
+  readonly altitudeCamera = new AltitudeCamera();
+  private sky!: T.Mesh;
+  get viewportHeight() {
+    return this.camera.top - this.camera.bottom;
+  }
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new T.WebGLRenderer({
       canvas,
@@ -40,7 +46,7 @@ export class GameScene {
         depthWrite: false,
         depthTest: false,
         vertexShader:
-          "varying float skyY;void main(){skyY=(modelMatrix*vec4(position,1.)).y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
+          "varying float skyY;void main(){skyY=position.y+14.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
         fragmentShader:
           "varying float skyY;void main(){vec3 a=vec3(1.,.80,.58);vec3 b=vec3(.80,.61,.76);gl_FragColor=vec4(mix(a,b,smoothstep(-8.,12.,skyY)),1.);}",
         side: T.DoubleSide,
@@ -48,41 +54,14 @@ export class GameScene {
     );
     sky.renderOrder = -1000;
     sky.position.set(0, 14, -85);
-    this.scene.add(sky);
+    this.sky = sky;
+    this.scene.add(sky, this.clouds.group);
     this.scene.add(
       this.landscape.group,
       this.aircraft.group,
       this.airports.group,
       this.smoke.group,
     );
-    const material = new T.MeshStandardMaterial({
-      color: scenery.cloud,
-      roughness: 1,
-    });
-    const geometry = new T.SphereGeometry(1, 12, 8);
-    for (let i = 0; i < 12; i++) {
-      const group = new T.Group(),
-        z = -12 - (i % 3) * 14;
-      for (let j = 0; j < 7; j++) {
-        const puff = new T.Mesh(geometry, material);
-        puff.position.set(
-          (j - 3) * 0.9,
-          Math.sin(j * 2.3 + i) * 0.25,
-          Math.cos(j) * 0.15,
-        );
-        puff.scale.set(1.1, 0.55 + Math.sin(j + 2) * 0.15, 0.6);
-        group.add(puff);
-      }
-      group.position.set(0, 10 + (i % 4) * 1.7, z);
-      group.scale.setScalar(0.6 + (i % 3) * 0.25);
-      this.scene.add(group);
-      this.clouds.push({
-        group,
-        x: (i / 12) * 110 - 55,
-        z,
-        speed: 0.08 + (i % 3) * 0.04,
-      });
-    }
     this.resize();
     window.addEventListener("resize", () => this.resize());
   }
@@ -90,7 +69,7 @@ export class GameScene {
     const w = innerWidth,
       h = innerHeight,
       aspect = w / h;
-    const height = aspect < 1 ? 24 : 20;
+    const height = viewportWorldHeight(aspect);
     this.camera.left = (-height * aspect) / 2;
     this.camera.right = (height * aspect) / 2;
     this.camera.top = height / 2;
@@ -109,6 +88,11 @@ export class GameScene {
     orientation?: { x: number; y: number; z: number; w: number },
   ) {
     this.elapsed += dt;
+    const center = this.altitudeCamera.update(altitude, dt);
+    this.camera.position.set(0, center + 2.5, 32);
+    this.camera.lookAt(0, center, 0);
+    this.sky.position.y = center + 7;
+    this.clouds.update(distance, center);
     this.airports.update(distance, this.elapsed);
     this.landscape.update(distance);
     this.aircraft.group.position.set(0, altitude, 0);
@@ -137,10 +121,6 @@ export class GameScene {
     if (phase === "rolling" || phase === "takeoff")
       for (const wheel of this.aircraft.wheels)
         wheel.rotateY((-horizontalSpeed * dt) / (0.15 * this.aircraft.scale));
-    // Compensate the camera elevation: the aircraft remains at the horizontal centre.
-    for (const c of this.clouds)
-      c.group.position.x =
-        ((((c.x - distance * c.speed + 550) % 110) + 110) % 110) - 55;
     this.renderer.render(this.scene, this.camera);
   }
 }

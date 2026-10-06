@@ -11,6 +11,7 @@ const view = new GameScene(canvas),
 const input = new FlightInput(canvas, () => audio.unlock());
 const config = {
   ...defaultFlightConfig,
+  viewportHeight: view.viewportHeight,
   contactPoints: view.aircraft.contactPoints,
   crashContactPoints: view.aircraft.crashContactPoints,
 };
@@ -30,6 +31,7 @@ function frame(now: number) {
   if (!document.hidden) {
     accumulator += dt;
     while (accumulator >= STEP) {
+      config.viewportHeight = view.viewportHeight;
       stepFlight(state, input.value, STEP, terrainHeight, config);
       accumulator -= STEP;
     }

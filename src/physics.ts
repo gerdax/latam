@@ -24,7 +24,9 @@ export interface FlightConfig {
   climbAcceleration: number;
   descentAcceleration: number;
   neutralDrag: number;
-  ceiling: number;
+  /** World-space height visible in the current viewport. */
+  viewportHeight: number;
+  ceilingScreenHeights: number;
   startAltitude: number;
   resetClearance: number;
   resetDelay: number;
@@ -32,6 +34,7 @@ export interface FlightConfig {
   ceilingSlowdownDistance: number;
   maxLandingDescentSpeed: number;
   maxLandingPitch: number;
+  landingAssistHeight: number;
   groundDeceleration: number;
   takeoffAcceleration: number;
   takeoffSpeed: number;
@@ -45,19 +48,21 @@ export const defaultFlightConfig: Readonly<FlightConfig> = Object.freeze({
   crashMaterial: defaultCrashMaterial,
   crashContactPoints: cessnaCrashContacts,
   forwardSpeed: 7,
-  maxClimbSpeed: 3,
-  maxDescentSpeed: 5.4,
-  climbAcceleration: 5,
-  descentAcceleration: 7,
+  maxClimbSpeed: 10,
+  maxDescentSpeed: 18,
+  climbAcceleration: 10,
+  descentAcceleration: 14,
   neutralDrag: 2.4,
-  ceiling: 15,
+  viewportHeight: 20,
+  ceilingScreenHeights: 2,
   startAltitude: 9,
   resetClearance: 4,
   resetDelay: 3,
   pitchResponse: 5,
-  ceilingSlowdownDistance: 1,
-  maxLandingDescentSpeed: 1.8,
-  maxLandingPitch: 0.18,
+  ceilingSlowdownDistance: 4,
+  maxLandingDescentSpeed: 2.2,
+  maxLandingPitch: 0.22,
+  landingAssistHeight: 0.8,
   groundDeceleration: 2,
   takeoffAcceleration: 2.8,
   takeoffSpeed: 6,
@@ -76,6 +81,17 @@ export interface FlightState {
   phase: "flying" | "crashed" | "rolling" | "parked" | "takeoff";
   /** Elapsed seconds since impact. */
   crashTime: number;
+}
+
+/** Ceiling follows the ground directly below the aircraft, in viewport heights. */
+export function flightCeiling(
+  distance: number,
+  terrain: (x: number, z?: number) => number,
+  config: Readonly<FlightConfig> = defaultFlightConfig,
+): number {
+  return (
+    terrain(distance, 0) + config.viewportHeight * config.ceilingScreenHeights
+  );
 }
 
 export function createFlightState(
@@ -248,8 +264,15 @@ export function stepFlight(
         (acceleration * activeTime * activeTime) / 2 +
         state.velocity * (h - activeTime);
     }
+    const oldSpeed = state.horizontalSpeed;
+    state.horizontalSpeed = Math.min(
+      config.forwardSpeed,
+      oldSpeed + config.takeoffAcceleration * h,
+    );
+    state.distance += ((oldSpeed + state.horizontalSpeed) * h) / 2;
+    const ceiling = flightCeiling(state.distance, terrainHeight, config);
     if (state.velocity > 0 && config.ceilingSlowdownDistance > 0) {
-      const remaining = Math.max(0, config.ceiling - state.altitude);
+      const remaining = Math.max(0, ceiling - state.altitude);
       const allowedSpeed =
         config.maxClimbSpeed *
         Math.sqrt(Math.min(1, remaining / config.ceilingSlowdownDistance));
@@ -258,20 +281,38 @@ export function stepFlight(
         verticalTravel = ((oldVelocity + state.velocity) * h) / 2;
       }
     }
+    // A lower ceiling (terrain change or rotation) stops further rise without
+    // moving an aircraft already above it. Descent always remains available.
+    if (verticalTravel > 0) {
+      verticalTravel = Math.min(
+        verticalTravel,
+        Math.max(0, ceiling - state.altitude),
+      );
+    }
     state.altitude += verticalTravel;
-    const oldSpeed = state.horizontalSpeed;
-    state.horizontalSpeed = Math.min(
-      config.forwardSpeed,
-      oldSpeed + config.takeoffAcceleration * h,
-    );
-    state.distance += ((oldSpeed + state.horizontalSpeed) * h) / 2;
-    if (state.altitude >= config.ceiling) {
-      state.altitude = config.ceiling;
+    if (state.altitude >= ceiling) {
       state.velocity = Math.min(0, state.velocity);
     }
-    const targetPitch = Math.atan2(state.velocity, state.horizontalSpeed);
+    let targetPitch = Math.atan2(state.velocity, state.horizontalSpeed);
+    const landingRunway = runwayUnderAircraft(state, config);
+    const landingAssist =
+      landingRunway &&
+      Math.abs(control) <= 0.1 &&
+      state.velocity <= 0 &&
+      state.velocity >= -config.maxLandingDescentSpeed &&
+      state.altitude <=
+        landingRunway.elevation +
+          config.groundClearance +
+          config.landingAssistHeight;
+    if (landingAssist) targetPitch = 0;
     state.pitch +=
-      (targetPitch - state.pitch) * (1 - Math.exp(-config.pitchResponse * h));
+      (targetPitch - state.pitch) *
+      (1 -
+        Math.exp(
+          -(landingAssist
+            ? Math.max(8, config.pitchResponse)
+            : config.pitchResponse) * h,
+        ));
 
     if (
       state.altitude <=
