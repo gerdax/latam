@@ -109,6 +109,7 @@ export function createParkedAircraft(kind: ParkedAircraftKind): T.Group {
       sign * 0.7,
     );
     wheel.rotation.x = Math.PI / 2;
+    wheel.userData.part = "wheel";
     box(0.035, belly - 0.25, 0.035, rubber, -0.45, belly / 2, sign * 0.7);
     if (!jet) {
       const engine = mesh(
@@ -128,8 +129,18 @@ export function createParkedAircraft(kind: ParkedAircraftKind): T.Group {
       );
       inlet.rotation.y = Math.PI / 2;
       if (transport) {
-        box(0.035, 0.9, 0.065, rubber, 0.48, belly - 0.1, sign * 1.35);
-        box(0.035, 0.065, 0.9, rubber, 0.48, belly - 0.1, sign * 1.35);
+        const propeller = new T.Group();
+        propeller.position.set(0.48, belly - 0.1, sign * 1.35);
+        propeller.userData.part = "propeller";
+        group.add(propeller);
+        for (const [height, depth] of [
+          [0.9, 0.065],
+          [0.065, 0.9],
+        ]) {
+          propeller.add(
+            new T.Mesh(new T.BoxGeometry(0.035, height, depth), rubber),
+          );
+        }
       }
     }
   }
@@ -141,6 +152,7 @@ export function createParkedAircraft(kind: ParkedAircraftKind): T.Group {
     0,
   );
   frontWheel.rotation.x = Math.PI / 2;
+  frontWheel.userData.part = "wheel";
   box(0.035, belly - 0.3, 0.035, rubber, length * 0.3, belly / 2, 0);
   if (jet) {
     const exhaust = mesh(

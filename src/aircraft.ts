@@ -3,15 +3,21 @@ import {
   cessnaContacts,
   cessnaCrashContacts,
   cessnaScale,
+  cessnaGroundClearance,
 } from "./aircraft-config";
 
 export interface Aircraft {
   group: T.Group;
   propeller: T.Group;
-  contactPoints: typeof cessnaContacts;
-  crashContactPoints: typeof cessnaCrashContacts;
+  propellers?: T.Group[];
+  contactPoints: ReadonlyArray<Readonly<{ x: number; y: number; z: number }>>;
+  crashContactPoints: ReadonlyArray<
+    Readonly<{ x: number; y: number; z: number }>
+  >;
   wheels: T.Mesh[];
   scale: number;
+  groundClearance: number;
+  wheelContactCount: number;
 }
 export function createCessna(): Aircraft {
   const group = new T.Group();
@@ -164,5 +170,7 @@ export function createCessna(): Aircraft {
     crashContactPoints: cessnaCrashContacts,
     wheels,
     scale: cessnaScale,
+    groundClearance: cessnaGroundClearance,
+    wheelContactCount: 8,
   };
 }

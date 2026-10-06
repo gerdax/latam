@@ -1,5 +1,6 @@
 import * as T from "three";
-import { createCessna } from "./aircraft";
+import { createAircraft, type AircraftKind } from "./fleet";
+import { disposeAircraft } from "./aircraft-picker";
 import { Landscape, scenery } from "./terrain";
 import { AirportsView } from "./airports-view";
 import { CrashSmoke } from "./smoke";
@@ -10,11 +11,12 @@ export class GameScene {
   readonly renderer: T.WebGLRenderer;
   readonly scene = new T.Scene();
   readonly camera = new T.OrthographicCamera();
-  readonly aircraft = createCessna();
+  aircraft = createAircraft("cessna");
   readonly landscape = new Landscape();
   readonly airports = new AirportsView();
   readonly smoke = new CrashSmoke();
   private readonly smokeSource = new T.Vector3();
+  private readonly wheelScale = new T.Vector3();
   private elapsed = 0;
   readonly clouds = new CloudField();
   readonly altitudeCamera = new AltitudeCamera();
@@ -77,6 +79,14 @@ export class GameScene {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
   }
+  selectAircraft(kind: AircraftKind) {
+    this.scene.remove(this.aircraft.group);
+    disposeAircraft(this.aircraft.group);
+    this.aircraft = createAircraft(kind);
+    this.scene.add(this.aircraft.group);
+    this.altitudeCamera.center = 7;
+    return this.aircraft;
+  }
   render(
     distance: number,
     altitude: number,
@@ -118,9 +128,22 @@ export class GameScene {
         : phase === "flying"
           ? 95
           : 30 + horizontalSpeed * 9);
+    for (const propeller of this.aircraft.propellers ?? [])
+      propeller.rotation.x +=
+        dt *
+        (phase === "crashed"
+          ? 95 * Math.exp(-crashTime * 3)
+          : phase === "flying"
+            ? 95
+            : 30 + horizontalSpeed * 9);
     if (phase === "rolling" || phase === "takeoff")
-      for (const wheel of this.aircraft.wheels)
-        wheel.rotateY((-horizontalSpeed * dt) / (0.15 * this.aircraft.scale));
+      for (const wheel of this.aircraft.wheels) {
+        wheel.getWorldScale(this.wheelScale);
+        const radius =
+          (wheel.geometry as T.CylinderGeometry).parameters.radiusTop *
+          this.wheelScale.x;
+        wheel.rotateY((-horizontalSpeed * dt) / Math.max(0.01, radius));
+      }
     this.renderer.render(this.scene, this.camera);
   }
 }

@@ -1,0 +1,35 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { FlightSession } from "../src/flight-session";
+import { defaultFlightConfig } from "../src/physics";
+import { createAircraft } from "../src/fleet";
+test("flight waits initially and advances only after choosing an aircraft", () => {
+  const session = new FlightSession({ ...defaultFlightConfig }, () => 0);
+  session.step(1, 10);
+  assert.equal(session.state.distance, 0);
+  assert.equal(session.state.altitude, 9);
+  session.select(createAircraft("passenger"));
+  session.step(0, 1);
+  assert.equal(session.waiting, false);
+  assert.ok(session.state.distance > 0);
+});
+test("every crash reset pauses before any new-flight movement, even with a long update", () => {
+  const session = new FlightSession({ ...defaultFlightConfig }, () => 0);
+  session.select(createAircraft("military"));
+  session.state.altitude = 0.1;
+  session.state.velocity = -4;
+  session.step(0, 1 / 120);
+  assert.equal(session.state.phase, "crashed");
+  session.step(1, 10);
+  assert.equal(session.waiting, true);
+  assert.equal(session.state.phase, "flying");
+  const after = { ...session.state };
+  session.step(-1, 5);
+  assert.deepEqual(session.state, after);
+  session.select(createAircraft("transport"));
+  assert.equal(session.waiting, false);
+  assert.equal(session.state.velocity, 0);
+  assert.equal(session.state.crashBody, null);
+  session.step(0, 1);
+  assert.ok(session.state.distance > after.distance);
+});

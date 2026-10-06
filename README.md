@@ -16,6 +16,8 @@ Przy końcowym podejściu po puszczeniu sterowania samolot delikatnie wyrównuje
 
 Lotniska mają dwa hangary i płytę postojową obok pasa. Otwarte hangary mieszczą kolejno transportowiec ze śmigłami, samolot pasażerski lub wojskowy odrzutowiec; co czwarte lotnisko ma zamknięty hangar. Zaparkowane modele są dekoracyjne i nie blokują pasa. Układ jest stały dla danego lotniska, a obiekty są ponownie używane w nieskończonej scenerii.
 
+Przed pierwszym lotem oraz po każdym restarcie pojawia się tabelka z obrazkami: Cessna, samolot transportowy, pasażerski i wojskowy. Kliknięcie lub dotknięcie obrazka rozpoczyna lot wybranym modelem. Do tego czasu świat i dźwięk są zatrzymane. Podczas lotu tabelka jest ukryta. Wszystkie modele korzystają z tego samego sterowania i parametrów lotu, ale mają własny obrys kolizji i wysokość podwozia nad pasem. Obrazki są renderowane z rzeczywistych modeli 3D.
+
 ## GitHub Pages
 
 Adres gry: https://gerdax.github.io/latam-play/
