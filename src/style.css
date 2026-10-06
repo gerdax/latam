@@ -16,13 +16,14 @@ canvas {
   -webkit-user-select: none;
 }
 dialog.aircraft-picker {
+  box-sizing: border-box;
   border: 1px solid #ffffff88;
   border-radius: 24px;
   background: #fff2e2f2;
   padding: 16px;
   box-shadow: 0 20px 80px #3d31434d;
-  width: min(620px, calc(100vw - 48px));
-  max-height: calc(100dvh - 48px);
+  width: min(580px, calc(100vw - 56px));
+  max-height: calc(100dvh - 56px);
   overflow: auto;
   color: #544a4c;
 }

@@ -15,13 +15,29 @@ if (!process.env.npm_execpath)
   throw new Error("Run this script with pnpm deploy:pages.");
 run(process.execPath, [process.env.npm_execpath, "run", "build:pages"]);
 const staging = mkdtempSync(join(tmpdir(), "latam-pages-"));
-run("git", [
-  "clone",
-  "--depth",
-  "1",
-  "https://github.com/gerdax/latam-play.git",
-  staging,
-]);
+const repository = "https://github.com/gerdax/latam.git";
+const branch = "gh-pages";
+const remote = spawnSync(
+  "git",
+  ["ls-remote", "--heads", repository, `refs/heads/${branch}`],
+  { encoding: "utf8" },
+);
+if (remote.error) throw remote.error;
+if (remote.status !== 0) throw new Error("Unable to inspect the Pages branch.");
+if (remote.stdout.trim())
+  run("git", [
+    "clone",
+    "--depth",
+    "1",
+    "--branch",
+    branch,
+    repository,
+    staging,
+  ]);
+else {
+  run("git", ["init", "-b", branch], staging);
+  run("git", ["remote", "add", "origin", repository], staging);
+}
 // Only generated site assets are replaced. Other repository files are preserved.
 rmSync(join(staging, "assets"), { recursive: true, force: true });
 cpSync(join(project, "dist"), staging, { recursive: true });
@@ -44,7 +60,7 @@ if (diff.status === 1) {
     ],
     staging,
   );
-  run("git", ["push", "origin", "HEAD:main"], staging);
+  run("git", ["push", "origin", `HEAD:${branch}`], staging);
 } else if (diff.status !== 0)
   throw new Error("Unable to inspect deployment changes.");
-console.log("Deployment pushed: https://gerdax.github.io/latam-play/");
+console.log("Pages build synchronized: https://gerdax.github.io/latam/");

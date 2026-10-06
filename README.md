@@ -20,8 +20,8 @@ Przed pierwszym lotem oraz po każdym restarcie pojawia się tabelka z obrazkami
 
 ## GitHub Pages
 
-Adres gry: https://gerdax.github.io/latam-play/
+Adres gry: https://gerdax.github.io/latam/
 
-Kod źródłowy pozostaje w prywatnym `gerdax/latam`. Publiczne `gerdax/latam-play` zawiera wyłącznie build strony i służy do hostingu przez Pages z gałęzi `main`, katalog główny. Referencje, dokumentacja oraz ustawienia lokalne nie trafiają do builda.
+Publiczne repozytorium `gerdax/latam` zawiera kod źródłowy na gałęzi `main`. Build gry publikowany jest na osobnej gałęzi `gh-pages`; GitHub Pages korzysta z jej katalogu głównego. Referencje, dokumentacja oraz ustawienia lokalne nie trafiają do builda. Publikacja nie zależy od wcześniejszego repozytorium `latam-play`.
 
-`pnpm build:pages` przygotowuje build z bazą `/latam-play/`. `pnpm deploy:pages` buduje grę, klonuje repozytorium strony do tymczasowego katalogu i wysyła nowy commit zawierający wygenerowane pliki. Wymaga dostępu Git z prawem zapisu do `gerdax/latam-play`; GitHub Pages publikuje je po zakończeniu swojego wdrożenia. Zwykłe `pnpm build` pozostaje buildem lokalnym z bazą `/`.
+`pnpm build:pages` przygotowuje build z bazą `/latam/`. `pnpm deploy:pages` buduje grę i wysyła wygenerowane pliki na `gh-pages` w `gerdax/latam`, używając tymczasowego katalogu. Przy pierwszej publikacji tworzy tę gałąź; kolejne aktualizują wyłącznie jej pliki strony. Wymaga dostępu Git z prawem zapisu do `gerdax/latam`; GitHub Pages publikuje build po zakończeniu wdrożenia. Zwykłe `pnpm build` pozostaje buildem lokalnym z bazą `/`.
