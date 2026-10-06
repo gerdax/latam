@@ -10,6 +10,7 @@ export const airportConfig = {
   length: 68,
   transition: 20,
   width: 7,
+  apronDepth: 10,
 };
 export function getAirport(id: number): Airport {
   return {
@@ -43,7 +44,11 @@ export function airportTerrain(x: number, z: number, natural: number): number {
   if (!airport) return natural;
   const edge =
     Math.max(airport.start - x, x - airport.end, 0) / airportConfig.transition;
-  const lateral = Math.max(0, Math.abs(z) - airportConfig.width / 2 - 2) / 2;
+  const lateral =
+    Math.max(
+      0,
+      z < 0 ? -z - airportConfig.apronDepth : z - airportConfig.width / 2 - 2,
+    ) / 2;
   const t = Math.min(1, Math.max(edge, lateral));
   const smooth = t * t * (3 - 2 * t);
   return airport.elevation * (1 - smooth) + natural * smooth;

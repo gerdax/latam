@@ -1,0 +1,10 @@
+import '../src/style.css';
+import {GameScene} from '../src/scene';
+import {getAirport} from '../src/airports';
+import {defaultFlightConfig} from '../src/physics';
+const canvas=document.querySelector<HTMLCanvasElement>('canvas')!;
+const view=new GameScene(canvas);
+const id=Number(new URLSearchParams(location.search).get('id')??'0');
+const airport=getAirport(id);
+view.render(airport.start+23,airport.elevation+defaultFlightConfig.groundClearance,0,'parked',0,0,0);
+canvas.dataset.variant=String(id%4);

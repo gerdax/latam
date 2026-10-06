@@ -14,6 +14,8 @@ Lot pozwala na wznoszenie pod kątem około 55° i opadanie do 69°. Pułap wyno
 
 Przy końcowym podejściu po puszczeniu sterowania samolot delikatnie wyrównuje nos, jeśli prędkość opadania jest bezpieczna. Tolerancja przyziemienia wynosi 2.2 jednostki/s oraz około 12.6° nachylenia; mocne uderzenia nadal kończą się zderzeniem.
 
+Lotniska mają dwa hangary i płytę postojową obok pasa. Otwarte hangary mieszczą kolejno transportowiec ze śmigłami, samolot pasażerski lub wojskowy odrzutowiec; co czwarte lotnisko ma zamknięty hangar. Zaparkowane modele są dekoracyjne i nie blokują pasa. Układ jest stały dla danego lotniska, a obiekty są ponownie używane w nieskończonej scenerii.
+
 ## GitHub Pages
 
 Adres gry: https://gerdax.github.io/latam-play/

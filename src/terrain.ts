@@ -5,8 +5,8 @@ export const scenery = {
   sky: 0xdfb8ce,
   cloud: 0xffdbad,
   layers: [
-    { z: -30, speed: 0.18, color: 0x97ae8b, base: 1.8, amplitude: 2.2 },
-    { z: -16, speed: 0.4, color: 0x82a877, base: 0.4, amplitude: 1.9 },
+    { z: -36, speed: 0.18, color: 0x97ae8b, base: 1.8, amplitude: 2.2 },
+    { z: -20, speed: 0.4, color: 0x82a877, base: 0.4, amplitude: 1.9 },
     { z: 0, speed: 1, color: 0x90ad68, base: -0.2, amplitude: 1.35 },
   ],
 };

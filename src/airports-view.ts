@@ -1,10 +1,12 @@
 import * as T from "three";
 import { airportConfig, getAirport } from "./airports";
+import { AirportHangars } from "./hangars";
 
 /** Fixed-size pool: airports use the same absolute coordinates as terrain and physics. */
 export class AirportsView {
   readonly group = new T.Group();
   private socks: T.Group[] = [];
+  private hangars: AirportHangars[] = [];
   constructor() {
     const asphalt = new T.MeshStandardMaterial({
       color: 0x777878,
@@ -35,17 +37,9 @@ export class AirportsView {
           stripe.position.set(x, 0.025, z);
           airport.add(stripe);
         }
-      const hangar = new T.Mesh(new T.BoxGeometry(3, 1.8, 2), cream);
-      hangar.position.set(airportConfig.length * 0.55, 0.9, -5);
-      airport.add(hangar);
-      const roof = new T.Mesh(new T.CylinderGeometry(1.6, 1.6, 3.2, 3), red);
-      roof.rotation.z = Math.PI / 2;
-      roof.position.set(airportConfig.length * 0.55, 1.7, -5);
-      roof.scale.z = 0.8;
-      airport.add(roof);
-      const door = new T.Mesh(new T.BoxGeometry(2.2, 1.4, 0.02), asphalt);
-      door.position.set(airportConfig.length * 0.55, 0.7, -3.99);
-      airport.add(door);
+      const hangars = new AirportHangars();
+      airport.add(hangars.group);
+      this.hangars.push(hangars);
       const pole = new T.Mesh(
         new T.CylinderGeometry(0.035, 0.045, 2.5, 6),
         cream,
@@ -89,6 +83,7 @@ export class AirportsView {
       const id = Math.max(0, current - 1) + i,
         airport = getAirport(id);
       group.position.set(airport.start - distance, airport.elevation, 0);
+      this.hangars[i].update(id);
       this.socks[i].rotation.y = Math.sin(time * 0.8 + i) * 0.15;
       this.socks[i].rotation.z = Math.sin(time * 2 + i) * 0.035;
     });

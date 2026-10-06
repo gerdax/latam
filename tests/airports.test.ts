@@ -3,6 +3,32 @@ import assert from "node:assert/strict";
 import { airportAt, getAirport, airportConfig } from "../src/airports";
 import { terrainHeight } from "../src/terrain";
 import { AirportsView } from "../src/airports-view";
+import { AirportHangars } from "../src/hangars";
+import { Box3 } from "three";
+test("hangar occupants vary predictably and stay clear of the runway", () => {
+  const hangars = new AirportHangars();
+  const expected = ["transport", "passenger", "military", null];
+  for (let id = 0; id < 8; id++) {
+    hangars.update(id);
+    hangars.group.updateMatrixWorld(true);
+    const planes = hangars.group.children.filter(
+      (c) => c.userData.kind && c.visible,
+    );
+    assert.equal(planes[0]?.userData.kind ?? null, expected[id % 4]);
+    assert.equal(planes.length, id % 4 === 3 ? 0 : 1);
+    for (const plane of planes) {
+      const bounds = new Box3().setFromObject(plane);
+      assert.ok(bounds.max.z < -airportConfig.width / 2);
+      assert.ok(bounds.min.x > 0 && bounds.max.x < airportConfig.length);
+    }
+  }
+  hangars.update(0);
+  assert.equal(
+    hangars.group.children.find((c) => c.visible && c.userData.kind)?.userData
+      .kind,
+    "transport",
+  );
+});
 test("runways share their exact ground elevation with terrain across their width", () => {
   for (let id = 0; id < 50; id++) {
     const a = getAirport(id);
