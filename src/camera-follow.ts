@@ -16,7 +16,7 @@ export class AltitudeCamera {
 
 /** A small camera lag shows acceleration without changing any world positions. */
 export class HorizontalCameraLag {
-  readonly maxFrameFraction = 0.02;
+  readonly maxFrameFraction = 0.04;
   readonly response = 2.5;
   readonly velocityScale = 1.8;
   private previousSpeed: number | null = null;
