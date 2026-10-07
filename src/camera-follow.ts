@@ -13,3 +13,38 @@ export class AltitudeCamera {
     return this.center;
   }
 }
+
+/** A small camera lag shows acceleration without changing any world positions. */
+export class HorizontalCameraLag {
+  readonly maxFrameFraction = 0.02;
+  readonly response = 2.5;
+  readonly velocityScale = 1.8;
+  private previousSpeed: number | null = null;
+  private followingSpeed = 0;
+  fraction = 0;
+
+  reset(): void {
+    this.previousSpeed = null;
+    this.followingSpeed = 0;
+    this.fraction = 0;
+  }
+
+  update(horizontalSpeed: number, dt: number): number {
+    if (!Number.isFinite(horizontalSpeed)) return this.fraction;
+    if (this.previousSpeed === null) {
+      this.previousSpeed = this.followingSpeed = horizontalSpeed;
+      return this.fraction;
+    }
+    if (!Number.isFinite(dt) || dt <= 0) return this.fraction;
+    // Exact first-order integration for a velocity changing linearly this frame.
+    const slope = (horizontalSpeed - this.previousSpeed) / dt;
+    const lag = slope / this.response;
+    const decay = Math.exp(-this.response * dt);
+    this.followingSpeed = horizontalSpeed - lag +
+      (this.followingSpeed - this.previousSpeed + lag) * decay;
+    this.previousSpeed = horizontalSpeed;
+    this.fraction = this.maxFrameFraction *
+      Math.tanh((horizontalSpeed - this.followingSpeed) / this.velocityScale);
+    return this.fraction;
+  }
+}

@@ -1,7 +1,7 @@
 import "./style.css";
 import { GameScene } from "./scene";
 import { terrainHeight } from "./terrain";
-import { defaultFlightConfig } from "./physics";
+import { defaultFlightConfig, flightOrientation } from "./physics";
 import { AircraftPicker } from "./aircraft-picker";
 import { FlightSession } from "./flight-session";
 import type { AircraftKind } from "./fleet";
@@ -53,7 +53,7 @@ function frame(now: number) {
     if (!session.waiting) accumulator += dt;
     while (accumulator >= STEP) {
       config.viewportHeight = view.viewportHeight;
-      session.step(input.value, STEP);
+      session.step(input.value, STEP, input.consumeRollRequest());
       if (session.waiting) {
         accumulator = 0;
         input.reset();
@@ -64,12 +64,13 @@ function frame(now: number) {
       }
       accumulator -= STEP;
     }
+    if (session.waiting) input.reset();
     if (session.waiting && !picker.isOpen) picker.show(selected);
     audio.update(
       input.value,
       state.phase === "crashed",
       state.phase !== "flying",
-      state.horizontalSpeed,
+      Math.abs(state.horizontalSpeed),
     );
     view.render(
       state.distance,
@@ -79,11 +80,16 @@ function frame(now: number) {
       state.crashTime,
       session.waiting ? 0 : dt,
       state.horizontalSpeed,
-      state.crashBody?.orientation,
+      state.crashBody?.orientation ?? flightOrientation(state),
     );
     canvas.dataset.flightStatus = session.waiting ? "selection" : state.phase;
     canvas.dataset.aircraft = selected;
     canvas.dataset.distance = state.distance.toFixed(3);
+    canvas.dataset.altitude = state.altitude.toFixed(3);
+    canvas.dataset.pitch = state.pitch.toFixed(3);
+    canvas.dataset.roll = state.roll.toFixed(3);
+    canvas.dataset.airspeed = Math.hypot(state.horizontalSpeed, state.velocity).toFixed(3);
+    canvas.dataset.horizontalOffset = view.horizontalCamera.fraction.toFixed(5);
   }
   requestAnimationFrame(frame);
 }

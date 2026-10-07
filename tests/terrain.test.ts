@@ -50,7 +50,8 @@ test("recycling preserves bounded resources and adjoining vertices during long f
     world.update(distance);
     assert.equal(world.group.children.length, count);
   }
-  world.update(345);
+  for (const distance of [1000, 345, -10, -345, -100000, 0]) {
+  world.update(distance);
   for (let layer = 0; layer < 3; layer++) {
     const meshes = world.group.children.slice(
       layer * 8,
@@ -62,6 +63,7 @@ test("recycling preserves bounded resources and adjoining vertices during long f
       for (let z = 0; z <= 8; z++)
         assert.ok(Math.abs(a.getY(24 * 9 + z) - b.getY(z)) < 1e-5);
     }
+  }
   }
   assert.ok(Number.isFinite(terrainHeight(1000000)));
 });

@@ -66,3 +66,29 @@ test("airport scenery reuses a bounded pool during infinite travel", () => {
     );
   }
 });
+
+test("backtracking restores airport positions without adding objects", () => {
+  const view = new AirportsView();
+  view.update(120, 0);
+  const initial = view.group.children.map(g => g.position.clone());
+  for (const distance of [10000, 300, -50, -10000, 120]) view.update(distance, 0);
+  assert.equal(view.group.children.length, 3);
+  view.group.children.forEach((g,i) => assert.ok(g.position.equals(initial[i])));
+});
+
+test('hangar aircraft match playable world dimensions and rest on the apron', async () => {
+  const {createAircraft} = await import('../src/fleet');
+  const {Vector3} = await import('three');
+  const hangars = new AirportHangars();
+  for (const [id,kind] of ['transport','passenger','military'].entries()) {
+    hangars.update(id);
+    const parked = hangars.group.children.find(c => c.userData.kind === kind)!;
+    const playable = createAircraft(kind as 'transport'|'passenger'|'military');
+    playable.group.scale.setScalar(playable.scale);
+    const bounds = new Box3().setFromObject(parked);
+    const parkedSize = bounds.getSize(new Vector3());
+    const flightSize = new Box3().setFromObject(playable.group).getSize(new Vector3());
+    assert.ok(parkedSize.distanceTo(flightSize) < 1e-8, kind);
+    assert.ok(Math.abs(bounds.min.y) < 1e-8, kind);
+  }
+});

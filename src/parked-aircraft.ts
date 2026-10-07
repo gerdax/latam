@@ -1,7 +1,9 @@
 import * as T from "three";
 
 export type ParkedAircraftKind = "transport" | "passenger" | "military";
-/** Low-poly silhouettes, decorative only; no obstacles are added to the runway. */
+/** Shared world scale for the playable and parked versions of each model. */
+export const aircraftModelScales = Object.freeze({ transport: 0.5, passenger: 0.48, military: 0.65 });
+/** Low-poly model source, used by both flight and decorative hangar aircraft. */
 export function createParkedAircraft(kind: ParkedAircraftKind): T.Group {
   const group = new T.Group();
   const paint = new T.MeshStandardMaterial({

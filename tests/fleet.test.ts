@@ -63,6 +63,8 @@ for (const { id } of aircraftOptions) {
       distance: airport.start + 20,
       altitude: airport.elevation + aircraft.groundClearance + 0.005,
       velocity: -1,
+      pitch: -0.035,
+      neutralTarget: null,
     });
     const landing = approach();
     stepFlight(landing, 0, 0.025, terrain, config);
@@ -75,11 +77,13 @@ for (const { id } of aircraftOptions) {
     takeoff.phase = "parked";
     takeoff.horizontalSpeed = 0;
     takeoff.velocity = 0;
-    stepFlight(takeoff, 1, 2.2, terrain, config);
+    takeoff.pitch = 0;
+    stepFlight(takeoff, 1, 3.5, terrain, config);
     assert.equal(takeoff.phase, "flying");
     assert.ok(takeoff.altitude > airport.elevation + aircraft.groundClearance);
     const hard = approach();
     hard.velocity = -4;
+    hard.pitch = -0.3;
     stepFlight(hard, 0, 0.025, terrain, config);
     assert.equal(hard.phase, "crashed");
     assert.ok(hard.crashBody);
@@ -171,4 +175,19 @@ test("transport propellers rotate about their own engines and catalog instances 
   assert.notEqual(first.wheels[0].material, second.wheels[0].material);
   assert.equal(createAircraft("passenger").propellers?.length, 0);
   assert.equal(createAircraft("military").propellers?.length, 0);
+});
+test('every aircraft completes loops and a half roll with its own collision hull', () => {
+  for (const {id} of aircraftOptions) {
+    const aircraft = createAircraft(id);
+    const config = {...defaultFlightConfig, startAltitude: 30, viewportHeight: 200,
+      contactPoints: aircraft.contactPoints, crashContactPoints: aircraft.crashContactPoints,
+      groundClearance: aircraft.groundClearance, wheelContactCount: aircraft.wheelContactCount};
+    const state = createFlightState(-100, config);
+    for (let i = 0; i < 1440; i++) stepFlight(state, 1, 1/120, () => -100, config);
+    assert.equal(state.phase, 'flying', id);
+    assert.ok(state.pitch > 2*Math.PI, id);
+    stepFlight(state, 0, .6, () => -100, config, true);
+    assert.equal(state.phase, 'flying', id);
+    assert.ok(Math.abs(state.roll - Math.PI) < 1e-10, id);
+  }
 });

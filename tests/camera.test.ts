@@ -58,3 +58,62 @@ test("cloud pool remains bounded and restores world positions after descending",
     clouds.group.children.some((c) => c.position.y > 40 && c.position.y < 60),
   );
 });
+
+test("cloud parallax reverses cleanly across negative world positions", () => {
+  const clouds = new CloudField();
+  clouds.update(-123, 24);
+  const initial = clouds.group.children.map(c => c.position.clone());
+  for (const distance of [5000, 0, -5000, -123]) clouds.update(distance, 24);
+  assert.equal(clouds.group.children.length, 25);
+  clouds.group.children.forEach((c,i) => assert.ok(c.position.equals(initial[i])));
+});
+test('camera follows the same loop at 30 and 120 frames per second', async () => {
+  const {createFlightState, stepFlight, defaultFlightConfig} = await import('../src/physics');
+  const run = (fps: number) => {
+    const config = {...defaultFlightConfig, startAltitude:22};
+    const state = createFlightState(0, config);
+    const camera = new AltitudeCamera();
+    camera.center = state.altitude - 2; // Begin after the preceding climb has settled.
+    for(let i=0;i<fps*5;i++) {
+      stepFlight(state,1,1/fps,()=>0,config);
+      camera.update(state.altitude,1/fps);
+      assert.ok(Math.abs(state.altitude-camera.center)<8);
+    }
+    return camera.center;
+  };
+  assert.ok(Math.abs(run(30)-run(120))<.25);
+});
+
+test('horizontal framing subtly follows acceleration and returns to center at steady speed', async () => {
+  const {HorizontalCameraLag} = await import('../src/camera-follow');
+  const camera = new HorizontalCameraLag();
+  assert.equal(camera.update(11, 1/120), 0);
+  for(let i=1;i<=120;i++) camera.update(11+4*i/120,1/120);
+  assert.ok(camera.fraction>0 && camera.fraction<.02);
+  for(let i=0;i<600;i++) camera.update(15,1/120);
+  assert.ok(Math.abs(camera.fraction)<1e-6);
+  for(let i=1;i<=120;i++) camera.update(15-4*i/120,1/120);
+  assert.ok(camera.fraction<0 && camera.fraction>-.02);
+  assert.equal(camera.update(100,0),camera.fraction);
+  camera.reset();
+  assert.equal(camera.update(-11,1/120),0);
+});
+
+test('horizontal lag is bounded, reversible and consistent at 30 and 120 fps', async () => {
+  const {HorizontalCameraLag} = await import('../src/camera-follow');
+  const run=(fps:number)=>{
+    const camera=new HorizontalCameraLag();
+    camera.update(11,1/fps);
+    for(let i=1;i<=fps*2;i++) camera.update(11-12*i/fps,1/fps);
+    assert.ok(camera.fraction<0);
+    assert.ok(Math.abs(camera.fraction)<=.02);
+    return camera.fraction;
+  };
+  assert.ok(Math.abs(run(30)-run(120))<1e-12);
+  const camera=new HorizontalCameraLag();
+  camera.update(-11,1/120);
+  assert.ok(camera.update(-1e6,1/120)>=-.02);
+  assert.ok(camera.update(1e6,1/120)<=.02);
+  const before=camera.fraction;
+  assert.equal(camera.update(NaN,1/120),before);
+});

@@ -34,13 +34,13 @@ export class FlightSession {
     );
     this.waiting = false;
   }
-  step(input: number, dt: number) {
+  step(input: number, dt: number, rollRequested = false) {
     if (this.waiting) return;
     if (!Number.isFinite(dt) || dt <= 0) return;
     const count = Math.ceil(dt * 120);
     for (let i = 0; i < count && !this.waiting; i++) {
       const wasCrashed = this.state.phase === "crashed";
-      stepFlight(this.state, input, dt / count, this.terrain, this.config);
+      stepFlight(this.state, input, dt / count, this.terrain, this.config, i === 0 && rollRequested);
       if (wasCrashed && this.state.phase === "flying") this.waiting = true;
     }
   }

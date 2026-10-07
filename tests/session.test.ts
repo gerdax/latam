@@ -33,3 +33,19 @@ test("every crash reset pauses before any new-flight movement, even with a long 
   session.step(0, 1);
   assert.ok(session.state.distance > after.distance);
 });
+test("selection discards rolls and resets aerobatics for each chosen model", () => {
+  const session = new FlightSession({ ...defaultFlightConfig }, () => -100);
+  session.step(1, 1, true);
+  assert.equal(session.state.rollActive, false);
+  session.select(createAircraft('cessna'));
+  session.step(0, .3, true);
+  assert.equal(session.state.rollActive, true);
+  assert.ok(session.state.roll > 0);
+  session.step(0, .3);
+  assert.equal(session.state.rollActive, false);
+  session.state.pitchVelocity = 1;
+  session.select(createAircraft('passenger'));
+  assert.equal(session.state.roll, 0);
+  assert.equal(session.state.pitchVelocity, 0);
+  assert.equal(session.state.pitch, 0);
+});

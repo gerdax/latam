@@ -1,7 +1,7 @@
 import * as T from "three";
 import { ConvexHull } from "three/addons/math/ConvexHull.js";
 import { createCessna, type Aircraft } from "./aircraft";
-import { createParkedAircraft } from "./parked-aircraft";
+import { createParkedAircraft, aircraftModelScales } from "./parked-aircraft";
 
 export type AircraftKind = "cessna" | "transport" | "passenger" | "military";
 
@@ -37,7 +37,7 @@ export function createAircraft(kind: AircraftKind): Aircraft {
   if (kind === "cessna") return createCessna();
   const group = new T.Group();
   const model = createParkedAircraft(kind);
-  const modelScale = { transport: 0.5, passenger: 0.48, military: 0.65 }[kind];
+  const modelScale = aircraftModelScales[kind];
   model.scale.setScalar(modelScale);
   model.position.y = -(kind === "military" ? 0.55 : 0.9) * modelScale;
   group.add(model);

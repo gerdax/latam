@@ -4,7 +4,7 @@ import { disposeAircraft } from "./aircraft-picker";
 import { Landscape, scenery } from "./terrain";
 import { AirportsView } from "./airports-view";
 import { CrashSmoke } from "./smoke";
-import { AltitudeCamera, viewportWorldHeight } from "./camera-follow";
+import { AltitudeCamera, HorizontalCameraLag, viewportWorldHeight } from "./camera-follow";
 import { CloudField } from "./clouds";
 
 export class GameScene {
@@ -20,6 +20,7 @@ export class GameScene {
   private elapsed = 0;
   readonly clouds = new CloudField();
   readonly altitudeCamera = new AltitudeCamera();
+  readonly horizontalCamera = new HorizontalCameraLag();
   private sky!: T.Mesh;
   get viewportHeight() {
     return this.camera.top - this.camera.bottom;
@@ -85,6 +86,7 @@ export class GameScene {
     this.aircraft = createAircraft(kind);
     this.scene.add(this.aircraft.group);
     this.altitudeCamera.center = 7;
+    this.horizontalCamera.reset();
     return this.aircraft;
   }
   render(
@@ -99,14 +101,17 @@ export class GameScene {
   ) {
     this.elapsed += dt;
     const center = this.altitudeCamera.update(altitude, dt);
-    this.camera.position.set(0, center + 2.5, 32);
-    this.camera.lookAt(0, center, 0);
+    const frameWidth = this.camera.right - this.camera.left;
+    const cameraX = -this.horizontalCamera.update(horizontalSpeed, dt) * frameWidth;
+    this.camera.position.set(cameraX, center + 2.5, 32);
+    this.camera.lookAt(cameraX, center, 0);
+    this.sky.position.x = cameraX;
     this.sky.position.y = center + 7;
     this.clouds.update(distance, center);
     this.airports.update(distance, this.elapsed);
     this.landscape.update(distance);
     this.aircraft.group.position.set(0, altitude, 0);
-    if (phase === "crashed" && orientation)
+    if (orientation)
       this.aircraft.group.quaternion.set(
         orientation.x,
         orientation.y,
@@ -127,7 +132,7 @@ export class GameScene {
         ? 95 * Math.exp(-crashTime * 3)
         : phase === "flying"
           ? 95
-          : 30 + horizontalSpeed * 9);
+          : 30 + Math.abs(horizontalSpeed) * 9);
     for (const propeller of this.aircraft.propellers ?? [])
       propeller.rotation.x +=
         dt *
@@ -135,7 +140,7 @@ export class GameScene {
           ? 95 * Math.exp(-crashTime * 3)
           : phase === "flying"
             ? 95
-            : 30 + horizontalSpeed * 9);
+            : 30 + Math.abs(horizontalSpeed) * 9);
     if (phase === "rolling" || phase === "takeoff")
       for (const wheel of this.aircraft.wheels) {
         wheel.getWorldScale(this.wheelScale);

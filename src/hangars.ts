@@ -1,6 +1,7 @@
 import * as T from "three";
 import {
   createParkedAircraft,
+  aircraftModelScales,
   type ParkedAircraftKind,
 } from "./parked-aircraft";
 
@@ -91,7 +92,11 @@ export class AirportHangars {
       "military",
     ] as ParkedAircraftKind[]) {
       const plane = createParkedAircraft(kind);
-      plane.position.set(23, 0, -6.5);
+      plane.scale.setScalar(aircraftModelScales[kind]);
+      // Rest the wheels on the apron after applying the shared flight scale.
+      plane.position.y = -new T.Box3().setFromObject(plane).min.y;
+      plane.position.x = 23;
+      plane.position.z = -6.5;
       this.group.add(plane);
       this.aircraft.push(plane);
     }
