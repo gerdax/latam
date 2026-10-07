@@ -29,6 +29,7 @@ export interface FlightConfig {
     maxLandingPitch: number;
     landingAssistHeight: number;
     groundDeceleration: number;
+    brakeDeceleration: number;
     takeoffAcceleration: number;
     takeoffSpeed: number;
     wheelContactCount: number;
@@ -61,7 +62,8 @@ export const defaultFlightConfig: Readonly<FlightConfig> = Object.freeze({
     maxLandingDescentSpeed: 2.2,
     maxLandingPitch: 0.22,
     landingAssistHeight: 0.8,
-    groundDeceleration: 2,
+    groundDeceleration: 0.2,
+    brakeDeceleration: 5,
     takeoffAcceleration: 2.8,
     takeoffSpeed: 8,
     wheelContactCount: 8,
@@ -212,13 +214,17 @@ export function stepFlight(state: FlightState, input: number, dt: number, terrai
             let speed: number;
             if (control > 0.15) {
                 state.phase = "takeoff";
-                speed = Math.min(config.forwardSpeed, oldSpeed + config.takeoffAcceleration * h);
+                // Cruise speed limits added thrust, never removes touchdown momentum.
+                speed = oldSpeed >= config.forwardSpeed
+                    ? oldSpeed
+                    : Math.min(config.forwardSpeed, oldSpeed + config.takeoffAcceleration * h);
             }
             else {
-                speed = Math.max(0, oldSpeed - config.groundDeceleration * h);
+                const resistance = config.groundDeceleration + config.brakeDeceleration * Math.max(0, -control);
+                speed = Math.max(0, oldSpeed - resistance * h);
                 state.phase = speed === 0 ? "parked" : "rolling";
             }
-            state.horizontalSpeed = direction * speed;
+            state.horizontalSpeed = speed === 0 ? 0 : direction * speed;
             state.distance += direction * (oldSpeed + speed) * h / 2;
             if (!runwayUnderAircraft(state, config))
                 crash(state, terrainHeight, config);

@@ -3,7 +3,7 @@ import { flightCeiling, type FlightState, type FlightConfig } from "../src/physi
 /** Feedback test pilot commands attitude, never writes actual velocity. */
 export function scenarioControl(state: FlightState, config: Readonly<FlightConfig>): number {
     if (state.phase !== "flying")
-        return 0;
+        return state.phase === "rolling" || state.phase === "takeoff" ? -1 : 0;
     const airport = getAirport(1);
     if (state.distance > airport.start + 3 && state.altitude < airport.elevation + config.groundClearance + config.landingAssistHeight && state.velocity >= -config.maxLandingDescentSpeed)
         return 0;

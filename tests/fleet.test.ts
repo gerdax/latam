@@ -73,6 +73,12 @@ for (const { id } of aircraftOptions) {
       landing.altitude,
       airport.elevation + aircraft.groundClearance,
     );
+    const touchdownSpeed = Math.abs(landing.horizontalSpeed);
+    stepFlight(landing, 0, .5, terrain, config);
+    assert.equal(landing.phase, "rolling");
+    assert.ok(Math.abs(landing.horizontalSpeed) > touchdownSpeed - .2);
+    stepFlight(landing, -1, 3, terrain, config);
+    assert.equal(landing.phase, "parked");
     const takeoff = approach();
     takeoff.phase = "parked";
     takeoff.horizontalSpeed = 0;

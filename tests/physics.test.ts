@@ -95,7 +95,7 @@ function approach(left = false) {
     s.velocity = -.8;
     return s;
 }
-test("upright gentle landing brakes to stop in both directions", () => {
+test("upright touchdown coasts until the pilot brakes in both directions", () => {
     for (const left of [false, true]) {
         const s = approach(left);
         stepFlight(s, 0, .1, runway);
@@ -103,7 +103,11 @@ test("upright gentle landing brakes to stop in both directions", () => {
         close(s.pitch, left ? Math.PI : 0);
         close(s.roll, left ? Math.PI : 0);
         const d = s.distance;
-        stepFlight(s, 0, 6, runway);
+        const speed = Math.abs(s.horizontalSpeed);
+        stepFlight(s, 0, 0.5, runway);
+        assert.equal(s.phase, "rolling");
+        close(Math.abs(s.horizontalSpeed), speed - defaultFlightConfig.groundDeceleration * .5);
+        stepFlight(s, -1, 3, runway);
         assert.equal(s.phase, "parked");
         assert.ok(left ? s.distance < d : s.distance > d);
         const p = structuredClone(s);
@@ -151,6 +155,8 @@ test("up takes off from parked preserving heading and roll, release aborts", () 
     s.horizontalSpeed = 0;
     stepFlight(s, 1, .2, runway);
     stepFlight(s, 0, 2, runway);
+    assert.equal(s.phase, "rolling");
+    stepFlight(s, -1, 1, runway);
     assert.equal(s.phase, "parked");
 });
 test("both runway ends enforce whole rotated aircraft envelope", () => {
@@ -163,16 +169,62 @@ test("both runway ends enforce whole rotated aircraft envelope", () => {
         assert.equal(s.phase, "crashed");
     }
 });
-test("touchdown and braking match 30 and 120 fps", () => {
+test("touchdown coast and explicit braking match 30 and 120 fps", () => {
     const run = (fps: number) => {
         const s = approach();
-        for (let i = 0; i < fps * 6; i++)
+        for (let i = 0; i < fps * .5; i++)
             stepFlight(s, 0, 1 / fps, runway);
+        for (let i = 0; i < fps * 3; i++)
+            stepFlight(s, -1, 1 / fps, runway);
         return s;
     };
     assert.deepEqual(run(30), run(120));
 });
 test("backward-moving touchdown cannot reverse persistent velocity through landing logic", () => {
-    const s=approach(true);s.horizontalSpeed=11;s.pitch=Math.PI;s.altitude=airport.elevation+cessnaGroundClearance;s.velocity=-.5;
-    stepFlight(s,0,1/120,runway);assert.equal(s.phase,"crashed");
+    const s = approach(true);
+    s.horizontalSpeed = 11;
+    s.pitch = Math.PI;
+    s.altitude = airport.elevation + cessnaGroundClearance;
+    s.velocity = -.5;
+    stepFlight(s, 0, 1 / 120, runway);
+    assert.equal(s.phase, "crashed");
+});
+test("ground brake scales with negative input, stops without reversal and neutral only coasts", () => {
+    for (const left of [false, true]) {
+        const s = approach(left);
+        s.phase = "rolling";
+        s.distance = airport.start + 34;
+        s.pitch = left ? Math.PI : 0;
+        s.velocity = 0;
+        s.horizontalSpeed = left ? -6 : 6;
+        const weak = structuredClone(s), strong = structuredClone(s);
+        stepFlight(s, 0, 1, runway);
+        stepFlight(weak, -.5, 1, runway);
+        stepFlight(strong, -1, 1, runway);
+        close(Math.abs(s.horizontalSpeed), 5.8);
+        close(Math.abs(weak.horizontalSpeed), 3.3);
+        close(Math.abs(strong.horizontalSpeed), .8);
+        assert.equal(s.phase, "rolling");
+        stepFlight(strong, -1, 3, runway);
+        assert.equal(strong.phase, "parked");
+        assert.equal(strong.horizontalSpeed, 0);
+        const stopped = structuredClone(strong);
+        stepFlight(strong, -1, 2, runway);
+        assert.deepEqual(strong, stopped);
+    }
+});
+test("nose-up takeoff from a fast ground roll preserves overspeed momentum in both directions", () => {
+    for (const left of [false, true]) {
+        const s = approach(left);
+        s.phase = "rolling";
+        s.distance = airport.start + 34;
+        s.pitch = left ? Math.PI : 0;
+        s.velocity = 0;
+        s.horizontalSpeed = left ? -20 : 20;
+        const initialDistance = s.distance;
+        stepFlight(s, 1, 1 / 120, runway);
+        assert.equal(s.phase, "flying");
+        close(s.horizontalSpeed, left ? -20 : 20);
+        close(s.distance - initialDistance, (left ? -20 : 20) / 120);
+    }
 });
