@@ -329,3 +329,8 @@ export function stepFlight(state: FlightState, input: number, dt: number, terrai
         }
     }
 }
+
+/** Enter the existing crash/smoke/restart path after an obstacle contact. */
+export function beginObstacleCrash(state: FlightState, terrain: (x: number, z?: number) => number, config: Readonly<FlightConfig>): void {
+    if (state.phase !== "crashed") crash(state, terrain, config);
+}

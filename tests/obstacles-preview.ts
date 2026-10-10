@@ -1,0 +1,18 @@
+import '../src/style.css';
+import {GameScene} from '../src/scene';
+import {obstaclesAround,type ObstacleKind} from '../src/obstacles';
+import {terrainHeight} from '../src/terrain';
+const canvas=document.querySelector<HTMLCanvasElement>('canvas')!;
+const view=new GameScene(canvas);
+const kind=(new URLSearchParams(location.search).get('kind') ?? 'building') as ObstacleKind;
+const time=12;
+const descriptor=obstaclesAround(240,time,terrainHeight).filter(o=>o.kind===kind).sort((a,b)=>Math.abs(a.x-240)-Math.abs(b.x-240))[0];
+const all=obstaclesAround(240,time,terrainHeight);
+const cluster=all.filter(o=>o.id.startsWith(descriptor.id.split(':').slice(0,2).join(':')+':'));
+const cityCenter=kind==='building'?(Math.min(...cluster.map(o=>o.x))+Math.max(...cluster.map(o=>o.x)))/2:descriptor.x;
+const altitude=kind==='building'?descriptor.y+descriptor.halfSize.y+2:descriptor.y;
+view.altitudeCamera.center=kind==='building'?7:Math.max(7,altitude-2);
+const ahead=Math.min(7,(view.camera.right-view.camera.left)*.3);
+view.render(kind==='building'?cityCenter:descriptor.x-ahead,altitude,0,'flying',0,0,11,undefined,time);
+canvas.dataset.obstacle=kind;
+canvas.dataset.altitude=String(altitude);

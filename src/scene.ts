@@ -1,3 +1,5 @@
+import { ObstaclesView } from "./obstacles-view";
+import { terrainHeight } from "./terrain";
 import * as T from "three";
 import { createAircraft, type AircraftKind } from "./fleet";
 import { disposeAircraft } from "./aircraft-picker";
@@ -14,6 +16,7 @@ export class GameScene {
   aircraft = createAircraft("cessna");
   readonly landscape = new Landscape();
   readonly airports = new AirportsView();
+  readonly obstacles = new ObstaclesView();
   readonly smoke = new CrashSmoke();
   private readonly smokeSource = new T.Vector3();
   private readonly wheelScale = new T.Vector3();
@@ -63,6 +66,7 @@ export class GameScene {
       this.landscape.group,
       this.aircraft.group,
       this.airports.group,
+      this.obstacles.group,
       this.smoke.group,
     );
     this.resize();
@@ -98,8 +102,9 @@ export class GameScene {
     dt: number,
     horizontalSpeed = 7,
     orientation?: { x: number; y: number; z: number; w: number },
+    worldTime?: number,
   ) {
-    this.elapsed += dt;
+    this.elapsed = worldTime ?? this.elapsed + dt;
     const center = this.altitudeCamera.update(altitude, dt);
     const frameWidth = this.camera.right - this.camera.left;
     const cameraX = -this.horizontalCamera.update(horizontalSpeed, dt) * frameWidth;
@@ -109,6 +114,7 @@ export class GameScene {
     this.sky.position.y = center + 7;
     this.clouds.update(distance, center);
     this.airports.update(distance, this.elapsed);
+    this.obstacles.update(distance, this.elapsed, terrainHeight);
     this.landscape.update(distance);
     this.aircraft.group.position.set(0, altitude, 0);
     if (orientation)

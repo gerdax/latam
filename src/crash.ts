@@ -168,3 +168,14 @@ export function stepCrash(motion: CrashMotion, body: CrashBody, dt: number, terr
         resolveCrashContacts(motion, body, terrain, material);
     }
 }
+
+/** Impulse from a moving obstacle, using the same inertia as terrain contacts. */
+export function applyObstacleImpact(motion: CrashMotion, body: CrashBody, contact: Vec3, normal: Vec3, obstacleVelocityX: number, material: Readonly<CrashMaterial> = defaultCrashMaterial): void {
+    const relative = contactVelocity(motion, body, contact);
+    relative.x -= obstacleVelocityX;
+    const closing = dot(relative, normal);
+    if (closing >= 0) return;
+    const bounce = closing < -material.restThreshold ? material.restitution : 0;
+    const magnitude = -(1 + bounce) * closing / mobility(body, contact, normal);
+    impulse(motion, body, contact, scale(normal, magnitude));
+}

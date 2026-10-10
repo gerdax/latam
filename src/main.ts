@@ -1,3 +1,4 @@
+import { obstaclesAround } from "./obstacles";
 import "./style.css";
 import { GameScene } from "./scene";
 import { terrainHeight } from "./terrain";
@@ -20,7 +21,7 @@ const config = {
   contactPoints: view.aircraft.contactPoints,
   crashContactPoints: view.aircraft.crashContactPoints,
 };
-const session = new FlightSession(config, terrainHeight);
+const session = new FlightSession(config, terrainHeight, obstaclesAround);
 const state = session.state;
 let selected: AircraftKind = "cessna";
 const picker = new AircraftPicker((kind) => {
@@ -81,6 +82,7 @@ function frame(now: number) {
       session.waiting ? 0 : dt,
       state.horizontalSpeed,
       state.crashBody?.orientation ?? flightOrientation(state),
+      session.elapsed,
     );
     canvas.dataset.flightStatus = session.waiting ? "selection" : state.phase;
     canvas.dataset.aircraft = selected;
